@@ -1,60 +1,63 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.9;
 
-//import "hardhat/console.sol";
+contract myBank {
+    address payable public accountHolder;
+    uint256 public accountBalance;
+    uint256 public minimumBalance;
 
-contract Assessment {
-    address payable public owner;
-    uint256 public balance;
+    event FundsDeposited(uint256 amount);
+    event FundsWithdrawn(uint256 amount);
+    event FundsMultiplied(uint256 factor);
+    event MinimumBalanceSet(uint256 newMinimumBalance);
+    event InterestAdded(uint256 interestAmount);
+    event AccountReset();
 
-    event Deposit(uint256 amount);
-    event Withdraw(uint256 amount);
-
-    constructor(uint initBalance) payable {
-        owner = payable(msg.sender);
-        balance = initBalance;
+    constructor(uint256 initialBalance, uint256 initialMinimumBalance) payable {
+        accountHolder = payable(msg.sender);
+        accountBalance = initialBalance;
+        minimumBalance = initialMinimumBalance;
     }
 
-    function getBalance() public view returns(uint256){
-        return balance;
+    function getAccountBalance() public view returns (uint256) {
+        return accountBalance;
     }
 
-    function deposit(uint256 _amount) public payable {
-        uint _previousBalance = balance;
-
-        // make sure this is the owner
-        require(msg.sender == owner, "You are not the owner of this account");
-
-        // perform transaction
-        balance += _amount;
-
-        // assert transaction completed successfully
-        assert(balance == _previousBalance + _amount);
-
-        // emit the event
-        emit Deposit(_amount);
+    function deposit(uint256 amount) public payable {
+        require(msg.sender == accountHolder, "Not authorized");
+        accountBalance += amount;
+        emit FundsDeposited(amount);
     }
 
-    // custom error
-    error InsufficientBalance(uint256 balance, uint256 withdrawAmount);
+    function withdraw(uint256 amount) public {
+        require(msg.sender == accountHolder, "Not authorized");
+        require(accountBalance - amount >= minimumBalance, "Withdrawal would go below minimum balance");
+        accountBalance -= amount;
+        payable(accountHolder).transfer(amount);
+        emit FundsWithdrawn(amount);
+    }
 
-    function withdraw(uint256 _withdrawAmount) public {
-        require(msg.sender == owner, "You are not the owner of this account");
-        uint _previousBalance = balance;
-        if (balance < _withdrawAmount) {
-            revert InsufficientBalance({
-                balance: balance,
-                withdrawAmount: _withdrawAmount
-            });
-        }
+    function multiplyBalance(uint256 factor) public {
+        require(msg.sender == accountHolder, "Not authorized");
+        accountBalance *= factor;
+        emit FundsMultiplied(factor);
+    }
 
-        // withdraw the given amount
-        balance -= _withdrawAmount;
+    function setMinimumBalance(uint256 newMinimumBalance) public {
+        require(msg.sender == accountHolder, "Not authorized");
+        minimumBalance = newMinimumBalance;
+        emit MinimumBalanceSet(newMinimumBalance);
+    }
 
-        // assert the balance is correct
-        assert(balance == (_previousBalance - _withdrawAmount));
+    function addInterest(uint256 interestAmount) public {
+        require(msg.sender == accountHolder, "Not authorized");
+        accountBalance += interestAmount;
+        emit InterestAdded(interestAmount);
+    }
 
-        // emit the event
-        emit Withdraw(_withdrawAmount);
+    function resetAccount() public {
+        require(msg.sender == accountHolder, "Not authorized");
+        accountBalance = 0;
+        emit AccountReset();
     }
 }
